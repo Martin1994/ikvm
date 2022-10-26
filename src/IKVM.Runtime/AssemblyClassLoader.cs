@@ -504,7 +504,6 @@ namespace IKVM.Internal
         internal AssemblyClassLoader(Assembly assembly) :
             this(assembly, null)
         {
-
         }
 
         /// <summary>
@@ -597,7 +596,11 @@ namespace IKVM.Internal
                     }
                     else
                     {
+#if STATIC_COMPILER
                         AssemblyName[] refNames = assemblyLoader.Assembly.GetReferencedAssemblies();
+#else
+                        AssemblyName[] refNames = assemblyLoader.Assembly.GetReferencedAssembliesWithOverride();
+#endif
                         references = new string[refNames.Length];
                         for (int i = 0; i < references.Length; i++)
                         {

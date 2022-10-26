@@ -427,19 +427,20 @@ namespace IKVM.Runtime
             if (mw == null || mw.IsStatic || !mw.IsPublic)
             {
 #if NO_REF_EMIT
-				global::java.lang.invoke.MethodType methodType = MethodHandleUtil.GetDelegateMethodType(delegateType);
-				if (methodType.parameterCount() > MethodHandleUtil.MaxArity)
-				{
-					throw new NotImplementedException();
-				}
-				global::java.lang.invoke.MethodHandle exception = global::java.lang.invoke.MethodHandles.publicLookup()
-					.findConstructor(mw == null || mw.IsStatic ? typeof(global::java.lang.AbstractMethodError) : typeof(global::java.lang.IllegalAccessError),
-						global::java.lang.invoke.MethodType.methodType(typeof(void), typeof(string)))
-					.bindTo(tw.Name + ".Invoke" + sig);
-				return Delegate.CreateDelegate(delegateType,
-						global::java.lang.invoke.MethodHandles.dropArguments(
-							global::java.lang.invoke.MethodHandles.foldArguments(global::java.lang.invoke.MethodHandles.throwException(methodType.returnType(), exception.type().returnType()), exception),
-							0, methodType.parameterArray()).vmtarget, "Invoke");
+                throw new System.PlatformNotSupportedException("DynamicCreateDelegate is not supported in AOT mode.");
+				//global::java.lang.invoke.MethodType methodType = MethodHandleUtil.GetDelegateMethodType(delegateType);
+				//if (methodType.parameterCount() > MethodHandleUtil.MaxArity)
+				//{
+				//	throw new NotImplementedException();
+				//}
+				//global::java.lang.invoke.MethodHandle exception = global::java.lang.invoke.MethodHandles.publicLookup()
+				//	.findConstructor(mw == null || mw.IsStatic ? typeof(global::java.lang.AbstractMethodError) : typeof(global::java.lang.IllegalAccessError),
+				//		global::java.lang.invoke.MethodType.methodType(typeof(void), typeof(string)))
+				//	.bindTo(tw.Name + ".Invoke" + sig);
+				//return Delegate.CreateDelegate(delegateType,
+				//		global::java.lang.invoke.MethodHandles.dropArguments(
+				//			global::java.lang.invoke.MethodHandles.foldArguments(global::java.lang.invoke.MethodHandles.throwException(methodType.returnType(), exception.type().returnType()), exception),
+				//			0, methodType.parameterArray()).vmtarget, "Invoke");
 #else
                 MethodInfo invoke = delegateType.GetMethod("Invoke");
                 ParameterInfo[] parameters = invoke.GetParameters();

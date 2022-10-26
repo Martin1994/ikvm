@@ -119,11 +119,18 @@ namespace IKVM.Internal
         private static readonly Type typeofMethodParametersAttribute = JVM.LoadType(typeof(MethodParametersAttribute));
         private static readonly Type typeofRuntimeVisibleTypeAnnotationsAttribute = JVM.LoadType(typeof(RuntimeVisibleTypeAnnotationsAttribute));
         private static readonly Type typeofConstantPoolAttribute = JVM.LoadType(typeof(ConstantPoolAttribute));
-        private static readonly CustomAttributeBuilder hideFromJavaAttribute = new CustomAttributeBuilder(typeofHideFromJavaAttribute.GetConstructor(Type.EmptyTypes), new object[0]);
-        private static readonly CustomAttributeBuilder hideFromReflection = new CustomAttributeBuilder(typeofHideFromJavaAttribute.GetConstructor(new Type[] { typeofHideFromJavaFlags }), new object[] { HideFromJavaFlags.Reflection | HideFromJavaFlags.StackTrace | HideFromJavaFlags.StackWalk });
+        private static readonly CustomAttributeBuilder hideFromJavaAttribute;
+        private static readonly CustomAttributeBuilder hideFromReflection;
 
         // we don't want beforefieldinit
-        static AttributeHelper() { }
+        static AttributeHelper()
+        {
+            try
+            {
+                hideFromJavaAttribute = new CustomAttributeBuilder(typeofHideFromJavaAttribute.GetConstructor(Type.EmptyTypes), new object[0]);
+                hideFromReflection = new CustomAttributeBuilder(typeofHideFromJavaAttribute.GetConstructor(new Type[] { typeofHideFromJavaFlags }), new object[] { HideFromJavaFlags.Reflection | HideFromJavaFlags.StackTrace | HideFromJavaFlags.StackWalk });
+            } catch (Exception) { }
+        }
 
 #if STATIC_COMPILER
         private static object ParseValue(ClassLoaderWrapper loader, TypeWrapper tw, string val)
@@ -4848,7 +4855,14 @@ namespace IKVM.Internal
 
         private static int SortFieldByToken(FieldInfo field1, FieldInfo field2)
         {
-            return field1.MetadataToken.CompareTo(field2.MetadataToken);
+#if !STATIC_COMPILER
+            if (field1.HasMetadataToken() && field2.HasMetadataToken())
+            {
+                return field1.MetadataToken.CompareTo(field2.MetadataToken);
+            }
+#endif
+
+            return field1.Name.CompareTo(field2.Name);
         }
 
         protected override void LazyPublishFields()
