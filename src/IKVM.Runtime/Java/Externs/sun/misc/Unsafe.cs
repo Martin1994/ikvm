@@ -26,6 +26,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Linq.Expressions;
 using System.Reflection;
 using System.Reflection.Emit;
 using System.Runtime.InteropServices;
@@ -248,7 +249,7 @@ namespace IKVM.Java.Externs.sun.misc
                 if (offset >= cacheCompareExchangeInt32.Length || cacheCompareExchangeInt32[offset] == null)
                 {
                     InterlockedResize(ref cacheCompareExchangeInt32, (int)offset + 1);
-                    cacheCompareExchangeInt32[offset] = (CompareExchangeInt32)CreateCompareExchange(offset);
+                    cacheCompareExchangeInt32[offset] = CreateCompareExchange<CompareExchangeInt32>(offset);
                 }
                 Stats.Log("compareAndSwapInt.", offset);
                 return cacheCompareExchangeInt32[offset](obj, update, expect) == expect;
@@ -286,7 +287,7 @@ namespace IKVM.Java.Externs.sun.misc
                 if (offset >= cacheCompareExchangeInt64.Length || cacheCompareExchangeInt64[offset] == null)
                 {
                     InterlockedResize(ref cacheCompareExchangeInt64, (int)offset + 1);
-                    cacheCompareExchangeInt64[offset] = (CompareExchangeInt64)CreateCompareExchange(offset);
+                    cacheCompareExchangeInt64[offset] = CreateCompareExchange<CompareExchangeInt64>(offset);
                 }
                 Stats.Log("compareAndSwapLong.", offset);
                 return cacheCompareExchangeInt64[offset](obj, update, expect) == expect;
@@ -320,47 +321,43 @@ namespace IKVM.Java.Externs.sun.misc
         }
 
 #if !FIRST_PASS
-        private static Delegate CreateCompareExchange(long fieldOffset)
+        private static TDelegate CreateCompareExchange<TDelegate>(long fieldOffset)
         {
             FieldInfo field = GetFieldInfo(fieldOffset);
             bool primitive = field.FieldType.IsPrimitive;
             Type signatureType = primitive ? field.FieldType : typeof(object);
-            MethodInfo compareExchange;
-            Type delegateType;
+            MethodInfo casMethod;
             if (signatureType == typeof(int))
             {
-                compareExchange = InterlockedMethods.CompareExchangeInt32;
-                delegateType = typeof(CompareExchangeInt32);
+                casMethod = InterlockedMethods.CompareExchangeInt32;
             }
             else if (signatureType == typeof(long))
             {
-                compareExchange = InterlockedMethods.CompareExchangeInt64;
-                delegateType = typeof(CompareExchangeInt64);
+                casMethod = InterlockedMethods.CompareExchangeInt64;
             }
             else
             {
-                compareExchange = InterlockedMethods.CompareExchangeOfT.MakeGenericMethod(field.FieldType);
-                delegateType = typeof(CompareExchangeObject);
+                casMethod = InterlockedMethods.CompareExchangeObj;
             }
-            DynamicMethod dm = new DynamicMethod("CompareExchange", signatureType, new Type[] { typeof(object), signatureType, signatureType }, field.DeclaringType);
-            ILGenerator ilgen = dm.GetILGenerator();
-            // note that we don't bother will special casing static fields, because it is legal to use ldflda on a static field
-            ilgen.Emit(OpCodes.Ldarg_0);
-            ilgen.Emit(OpCodes.Castclass, field.DeclaringType);
-            ilgen.Emit(OpCodes.Ldflda, field);
-            ilgen.Emit(OpCodes.Ldarg_1);
-            if (!primitive)
-            {
-                ilgen.Emit(OpCodes.Castclass, field.FieldType);
-            }
-            ilgen.Emit(OpCodes.Ldarg_2);
-            if (!primitive)
-            {
-                ilgen.Emit(OpCodes.Castclass, field.FieldType);
-            }
-            ilgen.Emit(OpCodes.Call, compareExchange);
-            ilgen.Emit(OpCodes.Ret);
-            return dm.CreateDelegate(delegateType);
+
+            var location1 = Expression.Parameter(typeof(object), "location1");
+            var value = Expression.Parameter(signatureType, "value");
+            var comparand = Expression.Parameter(signatureType, "comparand");
+            var exp = Expression.Lambda<TDelegate>(
+                Expression.Call(
+                    casMethod,
+                    new Expression[]
+                    {
+                        Expression.Field(Expression.Convert(location1, field.DeclaringType), field),
+                        value,
+                        comparand
+                    }
+                ),
+                false,
+                new ParameterExpression[] { location1, value, comparand }
+            );
+
+            return exp.Compile();
         }
 
         private static FieldInfo GetFieldInfo(long offset)
@@ -388,7 +385,7 @@ namespace IKVM.Java.Externs.sun.misc
                 if (offset >= cacheCompareExchangeObject.Length || cacheCompareExchangeObject[offset] == null)
                 {
                     InterlockedResize(ref cacheCompareExchangeObject, (int)offset + 1);
-                    cacheCompareExchangeObject[offset] = (CompareExchangeObject)CreateCompareExchange(offset);
+                    cacheCompareExchangeObject[offset] = CreateCompareExchange<CompareExchangeObject>(offset);
                 }
                 Stats.Log("compareAndSwapObject.", offset);
                 return cacheCompareExchangeObject[offset](obj, update, expect) == expect;

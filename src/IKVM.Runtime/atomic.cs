@@ -131,7 +131,8 @@ static class InterlockedMethods
 	internal static readonly MethodInfo AddInt32;
 	internal static readonly MethodInfo CompareExchangeInt32;
 	internal static readonly MethodInfo CompareExchangeInt64;
-	internal static readonly MethodInfo CompareExchangeOfT;
+	internal static readonly MethodInfo CompareExchangeObj;
+    internal static readonly MethodInfo CompareExchangeOfT;
 	internal static readonly MethodInfo ExchangeOfT;
 
 	static InterlockedMethods()
@@ -140,7 +141,8 @@ static class InterlockedMethods
 		AddInt32 = type.GetMethod("Add", new Type[] { Types.Int32.MakeByRefType(), Types.Int32 });
 		CompareExchangeInt32 = type.GetMethod("CompareExchange", new Type[] { Types.Int32.MakeByRefType(), Types.Int32, Types.Int32 });
 		CompareExchangeInt64 = type.GetMethod("CompareExchange", new Type[] { Types.Int64.MakeByRefType(), Types.Int64, Types.Int64 });
-		foreach (MethodInfo m in type.GetMethods())
+		CompareExchangeObj = type.GetMethod("CompareExchange", new Type[] { Types.Object.MakeByRefType(), Types.Object, Types.Object });
+        foreach (MethodInfo m in type.GetMethods())
 		{
 			if (m.IsGenericMethodDefinition)
 			{
